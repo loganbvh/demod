@@ -80,7 +80,7 @@ def demod(osc_dict, L=None, nstep=None, plot=True):
 	time = np.zeros(int(npnts/nstep))
 	pad = np.zeros(npad)
 	# Perform sliding FFT
-	for i in range(0, int(npnts/nstep-nstep)):
+	for i in range(int(npnts/nstep-nstep)):
 		fftdata = np.concatenate([tdo[i*nstep:i*nstep+L], pad])
 		#tdo_fft = fft.rfft(fftdata)
 		#tdo_fft = fft.rfft(df_tdo.tdo[i*nstep:i*nstep+L]) # if no zero-padding
