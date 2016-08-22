@@ -3,7 +3,7 @@
 
 dt_fast = 5e-8; % timebase for TDO signal
 dt_slow = 1e-6; % timebase for everything else
-[file, folder] = uigetfile('/LoganBVH/PFL/*.txt');
+[file, folder] = uigetfile('./LoganBVH/PFL/*.txt');
 fullFile = fullfile(folder, file);
 % data = [Bdot Idot Proj1 Proj2 PDO Field BProj1 BProj2 Field_fixed]
 data = dlmread(fullFile,'\t', 5 ,1);
