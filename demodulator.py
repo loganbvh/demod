@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import fft
 import pandas as pd
-from scipy import fftpack
+# from scipy import fftpack
 from scipy import interpolate
 from scipy import integrate
 from scipy import signal
@@ -23,13 +23,12 @@ def dataload_spf_bin(osc_file):
 	Returns dictionary containing timebase info, oscillations, and field.
 	"""
 	scale_file = osc_file+'Scale.txt'
-	raw_data = np.fromfile(osc_file, dtype=np.uint8) # load byte data, convert to uint8
+	raw_data = np.fromfile(osc_file, dtype=np.uint8) # load byte data as uint8
 	osc_data = raw_data[:len(raw_data)//2] # first half of file is tdo signal
 	pu_data = raw_data[len(raw_data)//2:] # second half of file is pickup voltage
 	scale_data = pd.read_csv(scale_file, '\t') # load scaling data
 	osc = scale_data.yincrement[0]*(osc_data-128.)+scale_data.yorigin[0] # convert to Voltage
 	pu = scale_data.yincrement[1]*(pu_data-128.)+scale_data.yorigin[1]
-	#time = np.arange(0, scale_data.dt[0]*len(osc), scale_data.dt[0])
 	df_osc = pd.DataFrame({'tdo': osc, 'pu': pu})
 	osc_dict= {'file': osc_file, 'dt': scale_data.dt[0], 'df_osc': df_osc}
 	return osc_dict
@@ -40,10 +39,12 @@ def pu_to_field(osc_dict, Nturns, diameter, plot=False):
 	diameter: of pickup coil in meters.
 	"""
 	coilArea = Nturns*np.pi*(diameter/2)**2
-	osc_dict['df_osc'].pu -= np.mean(osc_dict['df_osc'].pu[:100000])
+	osc_dict['df_osc'].pu -= np.mean(osc_dict['df_osc'].pu[:100000]) # subtract offset
 	field = (1/coilArea)*integrate.cumtrapz(osc_dict['df_osc'].pu, x=None, dx=osc_dict['dt'])
+	# data is oversampled, so decimate it:
 	field = signal.decimate(field, 40)
 	tdo = signal.decimate(osc_dict['df_osc'].tdo, 10)
+	# get new time steps after decimation:
 	dt_fast = osc_dict['dt']*osc_dict['df_osc'].tdo.size/len(tdo)
 	dt_slow = osc_dict['dt']*osc_dict['df_osc'].pu.size/len(field)
 	osc_dict = {'file': osc_dict['file'], 'dt_fast': dt_fast, 'tdo': tdo, 'dt_slow': dt_slow, 'Field': field}
@@ -62,7 +63,7 @@ def demod(osc_dict, L=None, nstep=None, plot=True):
 	tdo = np.array(osc_dict['tdo'])
 	field = np.array(osc_dict['Field'])
 	file = osc_dict['file']
-	npnts = tdo.size # df_tdo.tdo.size # number of points in tdo signal
+	npnts = tdo.size # number of points in tdo signal
 	npnts_slow = int(npnts*dt_fast/dt_slow) # number of points in everything else
 	time_fast = np.arange(0, dt_fast*npnts, dt_fast) # timebase for tdo
 	time_slow = np.arange(0, dt_slow*npnts_slow, dt_slow) # timebase for everything else
@@ -72,22 +73,23 @@ def demod(osc_dict, L=None, nstep=None, plot=True):
 		f = Fs*np.arange(0, 512)/(512)
 		fmax = f[np.argmax(abs(init_fft)[1:])]
 		pts_per_T = int(2/(fmax*dt_fast))        
-		L = 25*pts_per_T
-		nstep = 5*pts_per_T 
-	npad = np.power(2,16)-L # zero-padding (for speed should be 2^N-L, or not)
-	freq = np.zeros(int(npnts/nstep))
-	amp = np.zeros(int(npnts/nstep))
-	time = np.zeros(int(npnts/nstep))
+		L = 30*pts_per_T
+		if nstep is None:
+			nstep = 20*pts_per_T 
+	npad = np.power(2,16)-L # zero-padding (for speed should be 2^N-L, but probably doesn't matter)
 	pad = np.zeros(npad)
+	N = int(npnts/nstep)
+	freq = np.empty(N)
+	amp = np.empty(N)
+	time = np.empty(N)
 	# Perform sliding FFT
-	for i in range(int(npnts/nstep-nstep)):
+	for i in range(N-nstep):
 		fftdata = np.concatenate([tdo[i*nstep:i*nstep+L], pad])
-		#tdo_fft = fft.rfft(fftdata)
 		#tdo_fft = fft.rfft(df_tdo.tdo[i*nstep:i*nstep+L]) # if no zero-padding
 		#f = Fs*np.arange(0,L)/L; # if no zero-padding
 		f = Fs*np.arange(1000, L+npad)/(L+npad)
 		freq[i] = f[np.argmax(abs(fft.rfft(fftdata)[1000:]/L))]
-		amp [i] = np.sqrt(2)*np.sqrt(np.mean(np.square(fftdata[:L])))
+		amp [i] = np.sqrt(2*np.mean(np.square(fftdata[:L])))
 		time[i] = dt_fast*nstep*i;
 	time = time[:-nstep]
 	freq = freq[:-nstep]
@@ -96,8 +98,6 @@ def demod(osc_dict, L=None, nstep=None, plot=True):
 	if plot:
 		fig, ax1 = plt.subplots()
 		ax2 = ax1.twinx()
-		#ax1.yaxis.tick_right()
-		#ax2.yaxis.tick_left()
 		ax1.plot(time, freq*1e-6, 'b', label='Frequency')
 		ax2.plot(time, amp*1e3, 'r', label='Amplitude')
 		ax2.set_ylabel('Amplitude (mV)')
