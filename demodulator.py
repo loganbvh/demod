@@ -102,7 +102,7 @@ def demod(osc_dict, L=None, nstep=None, plot=True):
 		ax2.plot(time, amp*1e3, 'r', label='Amplitude')
 		ax2.set_ylabel('Amplitude (mV)')
 		ax1.set_ylabel('Frequency (MHz)')
-		ax2.set_xlabel('Time (s)')
+		ax1.set_xlabel('Time (s)')
 		lines1, labels1 = ax1.get_legend_handles_labels()
 		lines2, labels2 = ax2.get_legend_handles_labels()
 		ax2.legend(lines1 + lines2, labels1 + labels2, loc=0)
@@ -187,6 +187,7 @@ def data_save(demod_dict, file_root=None, spline=True, tdo_pu=False):
 	demod_file = file_root+'_demod.txt'
 	raw_file = file_root+'_raw.txt'
 	if spline:
+		demod_dict['df_spline'].columns=['time_s', 'Field_T', 'freq_Hz', 'amp_V']
 		demod_dict['df_spline'].to_csv(demod_file, sep='\t', header=True, index=False)
 	if tdo_pu:
 		data_dict = dataload_spf_bin(demod_dict['file'])
