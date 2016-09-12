@@ -5,6 +5,7 @@ import pandas as pd
 from scipy import interpolate
 from scipy import integrate
 from scipy import signal
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 # import os
 
@@ -85,7 +86,7 @@ def demod(osc_dict, L=None, nstep=None, plot=True):
     amp = np.empty(N)
     time = np.empty(N)
     # Perform sliding FFT
-    for i in range(N-nstep):
+    for i in tqdm(range(N-nstep)):
         fftdata = np.concatenate([tdo[i*nstep:i*nstep+L], pad])
         #tdo_fft = fft.rfft(df_tdo.tdo[i*nstep:i*nstep+L]) # if no zero-padding
         #f = Fs*np.arange(0,L)/L; # if no zero-padding
